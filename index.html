@@ -91,7 +91,8 @@
   }
   .column-body {
     padding: 8px;
-    min-height: 60px;
+    min-height: 100px;
+    transition: background 0.15s;
   }
 
   /* Cards */
@@ -146,10 +147,15 @@
   .tag-coach { background: #1a2a2a; color: #22d3ee; }
   .tag-tool { background: #1a1a1a; color: #94a3b8; }
 
+  .column.drag-active {
+    border-color: #333;
+    transition: border-color 0.15s;
+  }
+
   .drop-zone {
     border: 2px dashed #333; border-radius: 10px;
-    padding: 20px; text-align: center; color: #444;
-    font-size: 12px; margin: 8px 0; transition: all 0.15s; display: none;
+    padding: 12px; text-align: center; color: #444;
+    font-size: 12px; margin: 4px 0; transition: all 0.15s; display: none;
   }
   .drop-zone.active {
     display: block; border-color: #f97316; color: #f97316;
@@ -806,22 +812,45 @@ function setupDragDrop() {
       e.stopPropagation();
       card.classList.add('dragging');
       e.dataTransfer.setData('text/plain', card.dataset.id);
-      setTimeout(() => document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active')), 0);
+      setTimeout(() => {
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active'));
+        document.querySelectorAll('.column').forEach(c => c.classList.add('drag-active'));
+      }, 0);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
       document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
+      document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-active'));
+      document.querySelectorAll('.column-body').forEach(b => b.style.background = '');
     });
   });
 
-  document.querySelectorAll('.column-body').forEach(body => {
-    body.addEventListener('dragover', e => { e.preventDefault(); body.style.background = 'rgba(249,115,22,0.05)'; });
-    body.addEventListener('dragleave', () => { body.style.background = ''; });
-    body.addEventListener('drop', e => {
-      e.preventDefault(); body.style.background = '';
+  // Make ENTIRE column a drop target (header + body + everything)
+  document.querySelectorAll('.column').forEach(col => {
+    const colBody = col.querySelector('.column-body');
+    const colId = colBody?.dataset.column;
+    if (!colId) return;
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      colBody.style.background = 'rgba(249,115,22,0.08)';
+      col.style.borderColor = '#f97316';
+    });
+    col.addEventListener('dragleave', (e) => {
+      // Only if we're leaving the column entirely
+      if (!col.contains(e.relatedTarget)) {
+        colBody.style.background = '';
+        col.style.borderColor = '';
+      }
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      colBody.style.background = '';
+      col.style.borderColor = '';
       const cardId = e.dataTransfer.getData('text/plain');
       const card = data.cards.find(c => c.id === cardId);
-      if (card) { card.column = body.dataset.column; save(); }
+      if (card) { card.column = colId; save(); }
     });
   });
 }
