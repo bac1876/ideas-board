@@ -318,6 +318,7 @@
   </div>
   <div class="header-actions">
     <button class="btn" onclick="exportData()">📋 Export</button>
+    <button class="btn" onclick="openNewColumnModal()">+ Column</button>
     <button class="btn btn-primary" onclick="openNewModal()">+ New Idea</button>
   </div>
 </div>
@@ -326,6 +327,21 @@
 <div class="board" id="board"></div>
 <div class="updated" id="updated"></div>
 
+<!-- NEW COLUMN MODAL -->
+<div class="modal-overlay" id="newColumnModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeNewColumnModal()">✕</button>
+    <h2>➕ New Column</h2>
+    <input type="text" id="newColumnName" placeholder="Column name...">
+    <input type="text" id="newColumnEmoji" placeholder="Emoji (optional, e.g. 🎯)" style="width:120px;display:inline-block;">
+    <input type="color" id="newColumnColor" value="#f97316" style="width:60px;height:38px;display:inline-block;vertical-align:middle;border:1px solid #333;border-radius:8px;background:#1a1a1a;cursor:pointer;">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNewColumnModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addColumn()">Add Column</button>
+    </div>
+  </div>
+</div>
+
 <!-- NEW IDEA MODAL -->
 <div class="modal-overlay" id="newModal">
   <div class="modal">
@@ -333,12 +349,7 @@
     <h2>✨ New Idea</h2>
     <input type="text" id="newTitle" placeholder="Idea title...">
     <textarea id="newDesc" placeholder="Short description..."></textarea>
-    <select id="newColumn">
-      <option value="ideas">💡 Ideas</option>
-      <option value="planning">📋 Planning</option>
-      <option value="building">🔨 Building</option>
-      <option value="launched">🚀 Launched</option>
-    </select>
+    <select id="newColumn"></select>
     <input type="text" id="newTags" placeholder="Tags (comma separated): ai, saas, voice, re, coach, game, tool">
     <input type="text" id="newRevenue" placeholder="Revenue potential (optional)">
     <div class="modal-actions">
@@ -744,9 +755,13 @@ function render() {
     colEl.innerHTML = `
       <div class="column-header">
         <div class="column-title">${col.title} <span class="column-count">${cards.length}</span></div>
+        <div style="display:flex;gap:2px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();moveColumn('${colId}',-1)" style="padding:2px 5px;font-size:10px;" title="Move left">◀</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();moveColumn('${colId}',1)" style="padding:2px 5px;font-size:10px;" title="Move right">▶</button>
+          ${colId.startsWith('col-') ? `<button class="btn btn-sm" onclick="event.stopPropagation();editColumn('${colId}')" style="padding:2px 5px;font-size:10px;">✏️</button>` : ''}
+        </div>
       </div>
       <div class="column-body" data-column="${colId}">
-        <div class="drop-zone" data-column="${colId}">Drop here</div>
         ${cards.map(renderCard).join('')}
       </div>
     `;
@@ -813,19 +828,19 @@ function setupDragDrop() {
       card.classList.add('dragging');
       e.dataTransfer.setData('text/plain', card.dataset.id);
       setTimeout(() => {
-        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active'));
         document.querySelectorAll('.column').forEach(c => c.classList.add('drag-active'));
       }, 0);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
-      document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
       document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-active'));
       document.querySelectorAll('.column-body').forEach(b => b.style.background = '');
+      document.querySelectorAll('.column').forEach(c => c.style.borderColor = '');
+      document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
     });
   });
 
-  // Make ENTIRE column a drop target (header + body + everything)
+  // Make ENTIRE column a drop target
   document.querySelectorAll('.column').forEach(col => {
     const colBody = col.querySelector('.column-body');
     const colId = colBody?.dataset.column;
@@ -836,21 +851,61 @@ function setupDragDrop() {
       e.dataTransfer.dropEffect = 'move';
       colBody.style.background = 'rgba(249,115,22,0.08)';
       col.style.borderColor = '#f97316';
+
+      // Show drop indicator between cards
+      const cards = [...colBody.querySelectorAll('.card:not(.dragging)')];
+      colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+      const afterCard = cards.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = e.clientY - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, el: child };
+        return closest;
+      }, { offset: -Infinity }).el;
+
+      const indicator = document.createElement('div');
+      indicator.className = 'drop-indicator';
+      indicator.style.cssText = 'height:3px;background:linear-gradient(90deg,#f97316,#fb923c);border-radius:2px;margin:4px 0;';
+      if (afterCard) colBody.insertBefore(indicator, afterCard);
+      else colBody.appendChild(indicator);
     });
     col.addEventListener('dragleave', (e) => {
-      // Only if we're leaving the column entirely
       if (!col.contains(e.relatedTarget)) {
         colBody.style.background = '';
         col.style.borderColor = '';
+        colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
       }
     });
     col.addEventListener('drop', e => {
       e.preventDefault();
       colBody.style.background = '';
       col.style.borderColor = '';
+      colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
       const cardId = e.dataTransfer.getData('text/plain');
       const card = data.cards.find(c => c.id === cardId);
-      if (card) { card.column = colId; save(); }
+      if (!card) return;
+
+      // Figure out position among cards in this column
+      const cardsInCol = [...colBody.querySelectorAll('.card:not(.dragging)')];
+      const afterCard = cardsInCol.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = e.clientY - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, el: child };
+        return closest;
+      }, { offset: -Infinity }).el;
+
+      // Remove card from array, reinsert at right position
+      const cardIdx = data.cards.indexOf(card);
+      data.cards.splice(cardIdx, 1);
+      card.column = colId;
+
+      if (afterCard) {
+        const afterId = afterCard.dataset.id;
+        const targetIdx = data.cards.findIndex(c => c.id === afterId);
+        data.cards.splice(targetIdx, 0, card);
+      } else {
+        data.cards.push(card);
+      }
+      save();
     });
   });
 }
@@ -1032,7 +1087,69 @@ function deleteCard(cardId) {
 }
 
 // ===== NEW IDEA MODAL =====
+// ===== NEW COLUMN MODAL =====
+function openNewColumnModal() {
+  document.getElementById('newColumnModal').classList.add('show');
+  document.getElementById('newColumnName').focus();
+}
+function closeNewColumnModal() {
+  document.getElementById('newColumnModal').classList.remove('show');
+  document.getElementById('newColumnName').value = '';
+  document.getElementById('newColumnEmoji').value = '';
+  document.getElementById('newColumnColor').value = '#f97316';
+}
+function editColumn(colId) {
+  const col = data.columns[colId];
+  if (!col) return;
+  const action = prompt(`Column: ${col.title}\n\nType a new name to rename, or type DELETE to remove this column.`, col.title);
+  if (action === null) return;
+  if (action.toUpperCase() === 'DELETE') {
+    const cardsInCol = data.cards.filter(c => c.column === colId);
+    if (cardsInCol.length > 0) {
+      if (!confirm(`This column has ${cardsInCol.length} card(s). They'll be moved to Ideas. Continue?`)) return;
+      cardsInCol.forEach(c => c.column = 'ideas');
+    }
+    delete data.columns[colId];
+    save();
+    return;
+  }
+  if (action.trim()) {
+    col.title = action.trim();
+    save();
+  }
+}
+function moveColumn(colId, direction) {
+  const keys = Object.keys(data.columns);
+  const idx = keys.indexOf(colId);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= keys.length) return;
+  // Swap
+  [keys[idx], keys[newIdx]] = [keys[newIdx], keys[idx]];
+  // Rebuild columns object in new order
+  const newColumns = {};
+  keys.forEach(k => newColumns[k] = data.columns[k]);
+  data.columns = newColumns;
+  save();
+}
+function addColumn() {
+  const name = document.getElementById('newColumnName').value.trim();
+  if (!name) return;
+  const emoji = document.getElementById('newColumnEmoji').value.trim();
+  const color = document.getElementById('newColumnColor').value;
+  const id = 'col-' + Date.now();
+  const title = emoji ? `${emoji} ${name}` : name;
+  data.columns[id] = { title, color };
+  closeNewColumnModal();
+  save();
+}
+
+// ===== NEW IDEA MODAL =====
 function openNewModal() {
+  const sel = document.getElementById('newColumn');
+  sel.innerHTML = Object.entries(data.columns).map(([id, col]) =>
+    `<option value="${id}">${col.title}</option>`
+  ).join('');
   document.getElementById('newModal').classList.add('show');
   document.getElementById('newTitle').focus();
 }
@@ -1093,7 +1210,7 @@ function escHtml(str) {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetail(); closeNewModal(); }
+  if (e.key === 'Escape') { closeDetail(); closeNewModal(); closeNewColumnModal(); }
 });
 
 render();
