@@ -749,6 +749,58 @@ const defaultData = {
         notes: 'Concept from Brian (Feb 12, 2026 #ideas channel).\nThis is the meta-play — an AI that finds things to build and builds them.\nOpenClaw already has the bones: sub-agent spawning, model selection, cron scheduling.\nTarget: basic v1 running by end of weekend.'
       }
     }
+    ,{
+      id: 'kanban-api',
+      column: 'planning',
+      emoji: '📋',
+      title: 'Updating Kanban Board — Live API',
+      desc: 'Replace git-push workflow with a tiny Express API on the DO server. Board fetches data via HTTP — both Kosmo and Brian can read/write cards instantly.',
+      tags: ['tooling', 'infrastructure'],
+      revenue: 'Internal tool — speeds up all other projects by making idea tracking frictionless.',
+      sections: {
+        todo: [
+          { text: 'Split index.html: static UI + data.json', done: false },
+          { text: 'Build Express API (read/write cards, CRUD)', done: false },
+          { text: 'Add auth token for API writes', done: false },
+          { text: 'Update board UI to fetch from API on load', done: false },
+          { text: 'Add save-to-API on card edits in browser', done: false },
+          { text: 'Deploy as PM2 service on DO server', done: false },
+          { text: 'Update GitHub Pages to point at API for data', done: false },
+          { text: 'Test: Kosmo updates card via API, Brian sees it live', done: false }
+        ],
+        idea: 'Current problem: Every kanban update requires editing HTML + git push + wait for GitHub Pages deploy. Slow, error-prone (index.html sync issue).\n\nSolution: Tiny Express API on DO server (~50 lines).\n- GET /api/cards → returns all cards/columns as JSON\n- PUT /api/cards/:id → update a card\n- POST /api/cards → add new card\n- DELETE /api/cards/:id → remove card\n\nBoard UI (still on GitHub Pages) fetches data from API on load.\nBoth browser edits and Kosmo API calls hit the same endpoint.\nInstant updates, no git cycle.',
+        plan: 'Phase 1: Build API + migrate data\n- Extract card data from index.html into data.json\n- Express server with CORS, auth token, file-backed JSON storage\n- PM2 managed on DO server\n\nPhase 2: Update board UI\n- Fetch data from API instead of localStorage/defaults\n- Save edits to API (with localStorage as offline fallback)\n- Auto-refresh or WebSocket for live updates\n\nPhase 3: Kosmo integration\n- Helper function to add/update cards via HTTP\n- No more git push for card changes',
+        resources: 'Already have:\n- DO server with Node.js + PM2 ✅\n- Express experience ✅\n- GitHub Pages for static UI ✅\n\nNeeded:\n- API auth token\n- CORS config for GitHub Pages → DO server\n- Port allocation (e.g., 3200)',
+        info: 'DO server: 143.110.233.145\nGitHub Pages: https://bac1876.github.io/ideas-board/\nFirewall: only port 18789 open externally — will need to open API port or proxy through gateway',
+        notes: 'Brian requested Feb 12, 2026.\nKey insight: kanban board is becoming a core tool for both of us — needs to be frictionless.\nOption A from the discussion (API on DO server) was the recommended approach.'
+      }
+    }
+    ,{
+      id: 'kosmo-24-7',
+      column: 'planning',
+      emoji: '🌙',
+      title: 'Kosmo 24/7 — Always-On Autonomous Agent',
+      desc: 'Kosmo running around the clock — monitoring inboxes, hunting opportunities, building MVPs, managing showings, and proactively handling tasks without Brian having to ask.',
+      tags: ['ai', 'automation', 'infrastructure'],
+      revenue: 'Force multiplier — everything else runs faster/better when the AI never sleeps.',
+      sections: {
+        todo: [
+          { text: 'Gmail API with refresh tokens on server (no Brian-PC dependency)', done: false },
+          { text: 'Heartbeat optimization — batch checks efficiently', done: false },
+          { text: 'Opportunity Engine scouts running on cron', done: false },
+          { text: 'CRG Showings inbox monitoring (autonomous)', done: false },
+          { text: 'Proactive email triage + notifications', done: false },
+          { text: 'Calendar awareness + reminders', done: false },
+          { text: 'Autonomous project maintenance (git status, deploys)', done: false },
+          { text: 'Cost monitoring dashboard', done: false }
+        ],
+        idea: 'The vision: Kosmo is always running, not just when Brian opens Discord.\n\nWhat 24/7 looks like:\n- Inbox monitoring: CRGShowings@gmail.com + brian@searchnwa.com\n- Opportunity hunting: Haiku scouts scanning Reddit/Upwork/Twitter\n- Showing management: parse requests → book → confirm → route optimize\n- Proactive alerts: urgent emails, calendar reminders, deal updates\n- Background building: Opus working on green-lit MVPs\n- Memory maintenance: daily log cleanup, MEMORY.md updates\n\nBrian wakes up to: "Here\'s what happened overnight — 3 showing requests booked, 2 promising leads found, 1 MVP deployed to staging."',
+        plan: 'Phase 1: Server independence\n- Gmail API refresh tokens on DO server\n- Remove Brian-PC dependency for email access\n- PM2 processes for monitoring services\n\nPhase 2: Autonomous loops\n- Cron jobs for inbox checks (every 5-15 min)\n- Opportunity Engine scouts (every few hours)\n- Heartbeat-driven batch checks\n\nPhase 3: Full autonomy\n- Decision-making within approved boundaries\n- Escalation rules (what needs Brian\'s approval)\n- Cost caps and safety guardrails\n- Morning briefing summary',
+        resources: 'Already have:\n- OpenClaw heartbeats ✅\n- Cron job scheduling ✅\n- sessions_spawn for sub-agents ✅\n- ShowingTime automation ✅\n- CRG Showings pipeline ✅\n- Discord notifications ✅\n\nNeed:\n- Gmail API refresh tokens on server\n- Cost monitoring/caps\n- Escalation rules framework\n- Morning briefing template',
+        info: 'Current limitation: gog OAuth tokens live in Windows keyring on Brian-PC.\nSolution: Set up Gmail API with server-side refresh token storage.\nAlternative: Run email checks through Brian-PC node during business hours, server-side overnight.',
+        notes: 'This is the meta-goal — everything else (Opportunity Engine, CRG Showings, YLOPO) runs better when Kosmo is always on.\nKey constraint: cost management. Need caps so autonomous operation doesn\'t burn through API credits.\nBrian mentioned this Feb 12, 2026.'
+      }
+    }
   ]
 };
 
