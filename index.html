@@ -651,6 +651,34 @@ const defaultData = {
         info: 'Source: G:\\dropbox\\a-store\\REddit for Lead Gen.docx\nProject: /root/clawd/projects/reddit-lead-gen/',
         notes: ''
       }
+    },
+    {
+      id: 'crg-showings', column: 'building', emoji: '📧',
+      title: 'CRG Showings — Email-to-Booking Service',
+      desc: 'Agent emails addresses to CRGShowings@gmail.com → system books ShowingTime, optimizes route, captures MLS data, sends confirmation. Feeds into CFill.',
+      tags: ['re', 'ai', 'saas'],
+      revenue: 'Part of Agent Assistant — core automation',
+      sections: {
+        todo: [
+          { text: 'Smart scheduling algorithm (15 min + drive times)', done: true },
+          { text: 'Route optimization (OSRM)', done: true },
+          { text: 'Email parser (natural language dates/times)', done: true },
+          { text: 'Agent database (SQLite + AES encryption)', done: true },
+          { text: 'CRGShowings@gmail.com OAuth setup', done: true },
+          { text: 'ShowingTime Playwright booking', done: true },
+          { text: 'End-to-end dry run test', done: true },
+          { text: 'Live booking test with real email', done: false },
+          { text: 'MLS data capture → CFill integration', done: false },
+          { text: 'Gmail API on server (24/7 autonomous monitoring)', done: false },
+          { text: 'Confirmation email with route map', done: false },
+          { text: 'Agent onboarding flow (self-registration)', done: false }
+        ],
+        idea: 'Agent sends one email with addresses → gets back confirmed showings + optimized route + MLS data pre-loaded in CFill.\n\nThe full loop:\n1. Email addresses to CRGShowings@gmail.com\n2. System identifies agent by sender email\n3. Looks up their ShowingTime credentials\n4. Optimizes route (OSRM — free)\n5. Calculates smart schedule (15 min minimum + drive times, round down to 15-min slots, 1 hour bookings)\n6. Playwright books each showing on ShowingTime\n7. Captures MLS data from each listing\n8. Sends confirmation email with full itinerary\n9. Pushes MLS data to CFill for contract pre-fill',
+        plan: 'Architecture:\n- Agent DB: SQLite + AES-256 encrypted credentials\n- Email: CRGShowings@gmail.com (gog OAuth on Brian-PC, future: Gmail API on server)\n- Geocoding: Photon + Nominatim fallback (free)\n- Routing: OSRM (free)\n- Booking: Playwright + Chromium (headless)\n- Server: DO droplet (143.110.233.145)\n\nSmart Scheduling:\n- 15 min minimum at each property\n- Drive time from OSRM between stops\n- Round DOWN to nearest 15-min ShowingTime slot\n- Each booking = 1 hour (seller benefit)\n- Agent always arrives AFTER booking window opens',
+        resources: 'APIs & Services:\n- OSRM routing (free) ✅\n- Photon/Nominatim geocoding (free) ✅\n- Playwright + Chromium ✅\n- Gmail via gog CLI ✅\n- chrono-node for date parsing ✅\n- better-sqlite3 ✅\n\nCredentials:\n- CRGShowings@gmail.com (OAuth on Brian-PC) ✅\n- Per-agent ShowingTime creds (stored encrypted)\n\nInfrastructure:\n- DO server ✅\n- Node.js + npm ✅\n\nNeeded:\n- Gmail API refresh token on server (for 24/7 monitoring)\n- PM2 process management\n- Agent onboarding UI or form',
+        info: 'Project: /root/clawd/projects/crg-showings/\nFiles:\n- schedule-showings.js — smart scheduling + route optimization + booking\n- agent-db.js — agent database with encrypted creds\n- email-parser.js — natural language email parsing\n- process-inbox.js — end-to-end email processor\n- gmail-client.js — local gog Gmail wrapper\n- gmail-via-node.js — remote Gmail via Brian-PC\n\nDB: crg-showings.db\nAgent #1: Brian Curtis (brian@searchnwa.com)',
+        notes: 'Built Feb 12, 2026. Full pipeline working in dry-run mode.\nBrian\'s vision: combine with CFill so MLS data flows into contracts automatically.\nKey insight: email is zero-friction interface — agents already email, no app to learn.'
+      }
     }
   ]
 };
