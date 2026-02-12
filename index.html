@@ -131,6 +131,7 @@
   .section-badge-idea { background: #2a2a1a; color: #fbbf24; }
   .section-badge-plan { background: #1a1a2e; color: #818cf8; }
   .section-badge-info { background: #1a2a2a; color: #22d3ee; }
+  .section-badge-resources { background: #2a2018; color: #fb923c; }
   .section-badge-notes { background: #2a1a2a; color: #c084fc; }
 
   .tag {
@@ -238,6 +239,7 @@
   .section-tab.active[data-section="todo"] { color: #4ade80; }
   .section-tab.active[data-section="idea"] { color: #fbbf24; }
   .section-tab.active[data-section="plan"] { color: #818cf8; }
+  .section-tab.active[data-section="resources"] { color: #fb923c; }
   .section-tab.active[data-section="info"] { color: #22d3ee; }
   .section-tab.active[data-section="notes"] { color: #c084fc; }
 
@@ -350,11 +352,12 @@
 
 <script>
 // ===== DATA =====
-const SECTIONS = ['todo', 'idea', 'plan', 'info', 'notes'];
-const SECTION_LABELS = { todo: '✅ Todo', idea: '💡 Idea', plan: '📋 Plan', info: 'ℹ️ Info', notes: '📝 Notes' };
+const SECTIONS = ['todo', 'idea', 'plan', 'resources', 'info', 'notes'];
+const SECTION_LABELS = { todo: '✅ Todo', idea: '💡 Idea', plan: '📋 Plan', resources: '🔧 Resources', info: 'ℹ️ Info', notes: '📝 Notes' };
 const SECTION_PLACEHOLDERS = {
   idea: 'Describe the core idea... What problem does it solve? Who is it for?',
   plan: 'Outline the plan... What are the steps to build this? Architecture? Tech stack?',
+  resources: 'What do you need to build this?\n\nAPIs & Services:\n- \n\nSkills & Knowledge:\n- \n\nCost / Budget:\n- \n\nPeople / Help:\n- \n\nTools & Infrastructure:\n- ',
   info: 'Reference links, resources, API docs, competitor analysis, research...',
   notes: 'Free-form notes, observations, meeting notes, feedback...'
 };
@@ -384,6 +387,7 @@ const defaultData = {
         ],
         idea: 'Clone OpenClaw for real estate agents. Not just an app — a full personal AI assistant built on OpenClaw\'s proven architecture.\n\nEach agent gets their own always-on assistant that knows their pipeline, remembers every client, and proactively keeps them on track.\n\nFeatures as Skills:\n- MLS login + search (Playwright)\n- Contract filling (CFill — already built)\n- ShowingTime scheduling + route optimization\n- Post-showing voice notes → CRM auto-update\n- CMA builder from MLS sheets\n- Follow Up Boss integration\n- Nearby listing alerts (1mi radius)\n- Professional listing websites\n- Daily/weekly/monthly goal tracking',
         plan: 'Architecture: OpenClaw Clone (Restricted + RE Skills)\n\nKeep: Gateway + agent, Memory system, Heartbeat, Skills framework, Channel support (SMS/WhatsApp), Cron jobs\nRemove: Shell access, code execution, server management\nAdd: MLS Skill, Contract Skill, ShowingTime Skill, CRM Skill, Goal Tracking Skill\n\nDelivery:\n- Each agent gets own instance (or multi-tenant)\n- Agents provide own API keys (Gemini, FUB, ShowingTime)\n- Brian hosts helpers on DO server\n- Web dashboard + phone channels',
+        resources: 'APIs & Services:\n- OpenClaw (core architecture — already have)\n- Deepgram STT (Nova-2 + Flux — already integrated)\n- ElevenLabs TTS (already integrated)\n- OSRM routing API (free, no key)\n- Follow Up Boss API (per-agent key)\n- Google Maps API ($200/mo free credit)\n- Gemini API (per-agent key)\n\nInfrastructure:\n- DigitalOcean server (upgrade from $8/mo for multi-tenant)\n- Domain + SSL\n- PostgreSQL database\n\nExisting Tech (already built):\n- CFill contract filler ✅\n- ShowingTime Playwright automation ✅\n- Coaching app goal framework ✅\n- Route optimization ✅\n\nSkills & Knowledge:\n- Node.js / Express ✅\n- Playwright automation ✅\n- OpenClaw architecture ✅\n- MLS system access (need to research per-region)\n\nCost Estimate:\n- Server: ~$24-48/mo (bigger DO droplet)\n- APIs: mostly per-agent (they bring own keys)\n- Domain: ~$12/yr',
         info: 'Existing tech that feeds into this:\n- CFill contract filler (Playwright + FormSimplicity) — DONE\n- ShowingTime booking automation (Playwright) — DONE\n- Deepgram STT (Nova-2 + Flux) — integrated\n- ElevenLabs TTS — integrated\n- Coaching app goal framework — DONE\n- Route optimization (OSRM API) — tested\n\nMarket: 1.7M US agents, $50-100/mo subscription\nCompetitors: Point solutions but no true all-in-one AI assistant',
         notes: 'Brian\'s exact words: "I want to basically clone OpenClaw, restrict some of its abilities, and then add a specific set of skills that real estate agents can use."\n\nKey insight: Once an agent\'s data and workflow is in the system, switching cost is high = strong moat.'
       }
@@ -405,6 +409,7 @@ const defaultData = {
         ],
         idea: 'Agent gives addresses + time window. System optimizes route (OSRM API), logs into ShowingTime via Playwright, schedules each showing in optimal order, sends professional email to buyer with the plan.',
         plan: 'Tech: Playwright + OSRM routing API + Nominatim geocoding (all free)\nScript: /root/clawd/skills/showingtime-booking/\nFlow: Login → search → select listing → pick time → set end time → Request Appointment → CONFIRMED\nExecution: ~30 seconds per booking',
+        resources: 'APIs & Services:\n- OSRM routing API (free) ✅\n- Nominatim/Photon geocoding (free) ✅\n- Playwright + Chromium ✅\n\nCredentials (per agent):\n- ShowingTime login\n\nInfrastructure:\n- DO server (already running) ✅\n\nAll resources acquired — this is DONE.',
         info: 'ShowingTime URL: apptcenter.showingdesk.com\nKey selectors: #UserName, #Password, button[type=submit]\nScheduling iframe: scheduling.showingtime.com (cross-origin, Playwright handles it)\nTested: MLS #1327440, 3435 Alliance Dr, Springdale AR',
         notes: 'COMPLETE as of Feb 12, 2026. Packaged as OpenClaw skill. Successfully tested live booking.'
       }
@@ -424,6 +429,7 @@ const defaultData = {
         ],
         idea: 'After showing a property, the app prompts: "How was the showing at [address]?" Agent talks naturally for 30 seconds.\n\nAI transcribes and extracts:\n- Client sentiment (positive/negative/neutral)\n- Specific concerns mentioned\n- Likely offer range\n- Action items / follow-up dates\n\nPushes structured data to CRM. No typing. No forgetting. Captured while fresh.',
         plan: '',
+        resources: 'APIs & Services:\n- Deepgram STT (already integrated) ✅\n- Follow Up Boss REST API (per-agent key)\n- OpenAI or Claude for extraction\n\nCredentials (per agent):\n- Follow Up Boss API key\n\nCost:\n- Deepgram: ~$0.0043/min\n- OpenAI extraction: ~$0.01/note',
         info: 'Deepgram STT already integrated in CFill.\nFollow Up Boss has a REST API.\nCould use OpenAI/Claude for extraction.',
         notes: ''
       }
