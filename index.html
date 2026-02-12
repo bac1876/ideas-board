@@ -685,6 +685,15 @@ const defaultData = {
 
 // ===== STATE =====
 let data = JSON.parse(localStorage.getItem('kanban-v2')) || defaultData;
+
+// Auto-sync: merge new cards from defaultData that don't exist in saved data
+const savedIds = new Set(data.cards.map(c => c.id));
+const newCards = defaultData.cards.filter(c => !savedIds.has(c.id));
+if (newCards.length > 0) {
+  data.cards.push(...newCards);
+  localStorage.setItem('kanban-v2', JSON.stringify(data));
+  console.log(`Synced ${newCards.length} new card(s) from defaults`);
+}
 let currentCardId = null;
 let activeSection = 'todo';
 
