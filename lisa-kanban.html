@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lisa's Ideas — Kanban Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #0a0a0a;
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header h1 { font-size: 28px; font-weight: 800; }
+  .header .subtitle { color: #666; font-size: 13px; margin-top: 4px; }
+  .header-actions { display: flex; gap: 8px; }
+  
+  .btn {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: #222; border-color: #444; }
+  .btn-primary {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    border: none;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-danger { background: #2a1a1a; border-color: #f87171; color: #f87171; }
+  .btn-danger:hover { background: #3a1a1a; }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+  .board {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 24px;
+    align-items: flex-start;
+  }
+
+  .column {
+    min-width: 300px;
+    max-width: 300px;
+    background: #111;
+    border-radius: 12px;
+    border: 1px solid #1a1a1a;
+    flex-shrink: 0;
+  }
+  .column-header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .column-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .column-count {
+    background: #222;
+    color: #888;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .column-body {
+    padding: 8px;
+    min-height: 100px;
+    transition: background 0.15s;
+  }
+
+  /* Cards */
+  .card {
+    background: #1a1a1a;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 8px;
+    cursor: grab;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .card:hover {
+    border-color: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .card:active { cursor: grabbing; }
+  .card.dragging { opacity: 0.5; transform: rotate(2deg); }
+  .card-emoji { font-size: 20px; margin-bottom: 8px; }
+  .card-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .card-desc { font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 10px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .card-revenue {
+    font-size: 11px; color: #22c55e; font-weight: 600;
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid #222;
+  }
+  .card-sections-preview {
+    display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #222;
+  }
+  .section-badge {
+    font-size: 9px; font-weight: 700; padding: 2px 6px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .section-badge-todo { background: #1a2a1a; color: #4ade80; }
+  .section-badge-idea { background: #2a2a1a; color: #fbbf24; }
+  .section-badge-plan { background: #1a1a2e; color: #818cf8; }
+  .section-badge-info { background: #1a2a2a; color: #22d3ee; }
+  .section-badge-resources { background: #2a2018; color: #fb923c; }
+  .section-badge-notes { background: #2a1a2a; color: #c084fc; }
+
+  .tag {
+    font-size: 10px; font-weight: 600; padding: 3px 8px;
+    border-radius: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .tag-re { background: #1a2a1a; color: #22c55e; }
+  .tag-ai { background: #1a1a2e; color: #818cf8; }
+  .tag-voice { background: #2a1a2a; color: #c084fc; }
+  .tag-saas { background: #2a2a1a; color: #fbbf24; }
+  .tag-game { background: #2a1a1a; color: #f87171; }
+  .tag-coach { background: #1a2a2a; color: #22d3ee; }
+  .tag-tool { background: #1a1a1a; color: #94a3b8; }
+
+  .column.drag-active {
+    border-color: #333;
+    transition: border-color 0.15s;
+  }
+
+  .drop-zone {
+    border: 2px dashed #333; border-radius: 10px;
+    padding: 12px; text-align: center; color: #444;
+    font-size: 12px; margin: 4px 0; transition: all 0.15s; display: none;
+  }
+  .drop-zone.active {
+    display: block; border-color: #a855f7; color: #a855f7;
+    background: rgba(249, 115, 22, 0.05);
+  }
+
+  /* Stats */
+  .stats-bar { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat {
+    background: #111; border: 1px solid #1a1a1a;
+    border-radius: 10px; padding: 12px 20px; text-align: center;
+  }
+  .stat-value { font-size: 24px; font-weight: 800; }
+  .stat-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .updated { color: #444; font-size: 11px; text-align: right; margin-top: 16px; }
+
+  /* ===== MODAL: Shared ===== */
+  .modal-overlay {
+    display: none; position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75); z-index: 100;
+    justify-content: center; align-items: flex-start;
+    overflow-y: auto; padding: 40px 16px;
+  }
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: #111; border: 1px solid #222;
+    border-radius: 16px; padding: 24px;
+    width: 90%; max-width: 600px; position: relative;
+  }
+  .modal h2 { font-size: 18px; font-weight: 800; margin-bottom: 16px; }
+  .modal input, .modal textarea, .modal select {
+    width: 100%; background: #1a1a1a; border: 1px solid #333;
+    color: #fff; padding: 10px 12px; border-radius: 8px;
+    font-size: 14px; font-family: inherit; margin-bottom: 12px;
+  }
+  .modal textarea { min-height: 80px; resize: vertical; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none; color: #666;
+    font-size: 20px; cursor: pointer; padding: 4px;
+  }
+  .modal-close:hover { color: #fff; }
+
+  /* ===== CARD DETAIL MODAL ===== */
+  .detail-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+  }
+  .detail-emoji { font-size: 36px; }
+  .detail-title-wrap { flex: 1; }
+  .detail-title {
+    font-size: 22px; font-weight: 800; margin-bottom: 4px;
+    background: none; border: none; color: #fff; padding: 0;
+    font-family: inherit; width: 100%;
+  }
+  .detail-title:focus { outline: none; border-bottom: 1px solid #a855f7; }
+  .detail-column-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 6px; display: inline-block;
+  }
+  .detail-desc {
+    width: 100%; background: #0a0a0a; border: 1px solid #1a1a1a;
+    color: #ccc; padding: 12px; border-radius: 8px;
+    font-size: 13px; font-family: inherit; min-height: 60px;
+    resize: vertical; margin-bottom: 20px; line-height: 1.6;
+  }
+  .detail-desc:focus { outline: none; border-color: #333; }
+
+  /* Section Tabs */
+  .section-tabs {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    border-bottom: 1px solid #1a1a1a; padding-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .section-tab {
+    padding: 6px 14px; border-radius: 8px 8px 0 0;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    background: #0a0a0a; border: 1px solid #1a1a1a;
+    border-bottom: none; color: #666; transition: all 0.15s;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .section-tab:hover { color: #999; background: #111; }
+  .section-tab.active { color: #fff; background: #1a1a1a; border-color: #333; }
+  .section-tab.active[data-section="todo"] { color: #4ade80; }
+  .section-tab.active[data-section="idea"] { color: #fbbf24; }
+  .section-tab.active[data-section="plan"] { color: #818cf8; }
+  .section-tab.active[data-section="resources"] { color: #fb923c; }
+  .section-tab.active[data-section="info"] { color: #22d3ee; }
+  .section-tab.active[data-section="notes"] { color: #c084fc; }
+
+  .section-content { display: none; }
+  .section-content.active { display: block; }
+
+  /* Todo Section */
+  .todo-list { list-style: none; margin-bottom: 12px; }
+  .todo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: #0a0a0a; border: 1px solid #1a1a1a;
+    border-radius: 8px; margin-bottom: 6px; transition: all 0.15s;
+  }
+  .todo-item:hover { border-color: #333; }
+  .todo-item.done { opacity: 0.5; }
+  .todo-item.done .todo-text { text-decoration: line-through; }
+  .todo-check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #333; background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 11px; transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .todo-check:hover { border-color: #4ade80; }
+  .todo-check.checked { background: #4ade80; border-color: #4ade80; color: #000; }
+  .todo-text { flex: 1; font-size: 13px; }
+  .todo-delete {
+    background: none; border: none; color: #444;
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+  }
+  .todo-delete:hover { color: #f87171; }
+  .add-todo {
+    display: flex; gap: 8px;
+  }
+  .add-todo input {
+    flex: 1; margin-bottom: 0;
+  }
+
+  /* Text Sections (idea, plan, info, notes) */
+  .section-textarea {
+    width: 100%; background: #0a0a0a; border: 1px solid #1a1a1a;
+    color: #ccc; padding: 14px; border-radius: 8px;
+    font-size: 13px; font-family: inherit; min-height: 150px;
+    resize: vertical; line-height: 1.7;
+  }
+  .section-textarea:focus { outline: none; border-color: #333; }
+  .section-textarea::placeholder { color: #333; }
+
+  /* Tags + Revenue in detail */
+  .detail-meta {
+    display: flex; gap: 12px; margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid #1a1a1a; flex-wrap: wrap; align-items: center;
+  }
+  .detail-meta label { font-size: 11px; color: #666; font-weight: 600; text-transform: uppercase; }
+  .detail-meta input { margin-bottom: 0; flex: 1; min-width: 150px; }
+  .detail-meta select { margin-bottom: 0; width: auto; }
+
+  .detail-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid #1a1a1a;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>✨ Lisa's Ideas Board</h1>
+    <div class="subtitle">Click cards to expand • Drag between columns • All changes auto-save</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="exportData()">📋 Export</button>
+    <button class="btn btn-primary" onclick="openNewModal()">+ New Idea</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats"></div>
+<div class="board" id="board"></div>
+<div class="updated" id="updated"></div>
+
+<!-- NEW IDEA MODAL -->
+<div class="modal-overlay" id="newModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeNewModal()">✕</button>
+    <h2>✨ New Idea</h2>
+    <input type="text" id="newTitle" placeholder="Idea title...">
+    <textarea id="newDesc" placeholder="Short description..."></textarea>
+    <select id="newColumn">
+      <option value="ideas">💡 Ideas</option>
+      <option value="planning">📋 Planning</option>
+      <option value="building">🔨 Building</option>
+      <option value="launched">🚀 Launched</option>
+    </select>
+    <input type="text" id="newTags" placeholder="Tags (comma separated): ai, saas, voice, re, coach, game, tool">
+    <input type="text" id="newRevenue" placeholder="Revenue potential (optional)">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNewModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addIdea()">Add Idea</button>
+    </div>
+  </div>
+</div>
+
+<!-- CARD DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="max-width:700px;">
+    <button class="modal-close" onclick="closeDetail()">✕</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const SECTIONS = ['todo', 'idea', 'plan', 'resources', 'info', 'notes'];
+const SECTION_LABELS = { todo: '✅ Todo', idea: '💡 Idea', plan: '📋 Plan', resources: '🔧 Resources', info: 'ℹ️ Info', notes: '📝 Notes' };
+const SECTION_PLACEHOLDERS = {
+  idea: 'Describe the core idea... What problem does it solve? Who is it for?',
+  plan: 'Outline the plan... What are the steps to build this? Architecture? Tech stack?',
+  resources: 'What do you need to build this?\n\nAPIs & Services:\n- \n\nSkills & Knowledge:\n- \n\nCost / Budget:\n- \n\nPeople / Help:\n- \n\nTools & Infrastructure:\n- ',
+  info: 'Reference links, resources, API docs, competitor analysis, research...',
+  notes: 'Free-form notes, observations, meeting notes, feedback...'
+};
+
+const defaultData = {
+  columns: {
+    ideas: { title: '💡 Ideas', color: '#fbbf24' },
+    planning: { title: '📋 Planning', color: '#3b82f6' },
+    building: { title: '🔨 Building', color: '#a855f7' },
+    launched: { title: '🚀 Launched', color: '#22c55e' },
+    onhold: { title: '⏸️ On Hold', color: '#666' }
+  },
+  cards: [
+    {
+      id: 'example-idea', column: 'ideas', emoji: '💡',
+      title: 'My First Idea',
+      desc: 'Click me to edit! Add your description, tags, todos, and notes. Drag me to another column when ready.',
+      tags: ['tool'],
+      revenue: '',
+      sections: {
+        todo: [
+          { text: 'Think about the idea', done: false },
+          { text: 'Research the market', done: false },
+          { text: 'Make a plan', done: false }
+        ],
+        idea: 'Describe your idea here... What problem does it solve? Who is it for?',
+        plan: '',
+        resources: '',
+        info: '',
+        notes: ''
+      }
+    }
+  ]
+};
+
+// ===== STATE =====
+let data = JSON.parse(localStorage.getItem('lisa-kanban-v1')) || defaultData;
+
+// Auto-sync: merge new cards from defaultData that don't exist in saved data
+const savedIds = new Set(data.cards.map(c => c.id));
+const newCards = defaultData.cards.filter(c => !savedIds.has(c.id));
+if (newCards.length > 0) {
+  data.cards.push(...newCards);
+  localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+  console.log(`Synced ${newCards.length} new card(s) from defaults`);
+}
+let currentCardId = null;
+let activeSection = 'todo';
+
+// Migrate old cards without sections
+data.cards.forEach(card => {
+  if (!card.sections) {
+    card.sections = { todo: [], idea: '', plan: '', info: '', notes: '' };
+  }
+  SECTIONS.forEach(s => {
+    if (card.sections[s] === undefined) {
+      card.sections[s] = s === 'todo' ? [] : '';
+    }
+  });
+});
+
+function save() {
+  localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+  render();
+}
+
+// ===== RENDER BOARD =====
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  const counts = {};
+  Object.keys(data.columns).forEach(col => counts[col] = 0);
+  data.cards.forEach(card => counts[card.column] = (counts[card.column] || 0) + 1);
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${data.cards.length}</div><div class="stat-label">Total Ideas</div></div>
+    <div class="stat"><div class="stat-value">${counts.ideas || 0}</div><div class="stat-label">Ideas</div></div>
+    <div class="stat"><div class="stat-value">${counts.planning || 0}</div><div class="stat-label">Planning</div></div>
+    <div class="stat"><div class="stat-value">${counts.building || 0}</div><div class="stat-label">Building</div></div>
+    <div class="stat"><div class="stat-value">${counts.launched || 0}</div><div class="stat-label">Launched</div></div>
+  `;
+
+  Object.entries(data.columns).forEach(([colId, col]) => {
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+    const cards = data.cards.filter(c => c.column === colId);
+    colEl.innerHTML = `
+      <div class="column-header">
+        <div class="column-title">${col.title} <span class="column-count">${cards.length}</span></div>
+      </div>
+      <div class="column-body" data-column="${colId}">
+        <div class="drop-zone" data-column="${colId}">Drop here</div>
+        ${cards.map(renderCard).join('')}
+      </div>
+    `;
+    board.appendChild(colEl);
+  });
+
+  setupDragDrop();
+  document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+}
+
+function renderCard(card) {
+  const tagMap = {
+    re: ['Real Estate', 'tag-re'], ai: ['AI', 'tag-ai'], voice: ['Voice', 'tag-voice'],
+    saas: ['SaaS', 'tag-saas'], game: ['Game', 'tag-game'],
+    coach: ['Coaching', 'tag-coach'], tool: ['Tool', 'tag-tool']
+  };
+  const tags = (card.tags || []).map(t => {
+    const [label, cls] = tagMap[t] || [t, 'tag-tool'];
+    return `<span class="tag ${cls}">${label}</span>`;
+  }).join('');
+  const revenue = card.revenue ? `<div class="card-revenue">💰 ${card.revenue}</div>` : '';
+
+  // Section badges
+  let badges = '';
+  if (card.sections) {
+    const activeSections = [];
+    if (card.sections.todo?.length) activeSections.push('todo');
+    SECTIONS.filter(s => s !== 'todo').forEach(s => {
+      if (card.sections[s]) activeSections.push(s);
+    });
+    if (activeSections.length) {
+      badges = '<div class="card-sections-preview">' +
+        activeSections.map(s => `<span class="section-badge section-badge-${s}">${s}</span>`).join('') +
+        '</div>';
+    }
+  }
+
+  // Todo progress
+  let todoProgress = '';
+  if (card.sections?.todo?.length) {
+    const done = card.sections.todo.filter(t => t.done).length;
+    const total = card.sections.todo.length;
+    todoProgress = `<div style="font-size:10px;color:#4ade80;margin-top:4px;">✅ ${done}/${total} tasks</div>`;
+  }
+
+  return `
+    <div class="card" draggable="true" data-id="${card.id}" onclick="openDetail('${card.id}')">
+      <div class="card-emoji">${card.emoji || '💡'}</div>
+      <div class="card-title">${card.title}</div>
+      <div class="card-desc">${card.desc}</div>
+      <div class="card-tags">${tags}</div>
+      ${todoProgress}
+      ${revenue}
+      ${badges}
+    </div>
+  `;
+}
+
+// ===== DRAG & DROP =====
+function setupDragDrop() {
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      e.stopPropagation();
+      card.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+      setTimeout(() => {
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active'));
+        document.querySelectorAll('.column').forEach(c => c.classList.add('drag-active'));
+      }, 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
+      document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-active'));
+      document.querySelectorAll('.column-body').forEach(b => b.style.background = '');
+    });
+  });
+
+  // Make ENTIRE column a drop target (header + body + everything)
+  document.querySelectorAll('.column').forEach(col => {
+    const colBody = col.querySelector('.column-body');
+    const colId = colBody?.dataset.column;
+    if (!colId) return;
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      colBody.style.background = 'rgba(168,85,247,0.08)';
+      col.style.borderColor = '#a855f7';
+    });
+    col.addEventListener('dragleave', (e) => {
+      // Only if we're leaving the column entirely
+      if (!col.contains(e.relatedTarget)) {
+        colBody.style.background = '';
+        col.style.borderColor = '';
+      }
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      colBody.style.background = '';
+      col.style.borderColor = '';
+      const cardId = e.dataTransfer.getData('text/plain');
+      const card = data.cards.find(c => c.id === cardId);
+      if (card) { card.column = colId; save(); }
+    });
+  });
+}
+
+// ===== CARD DETAIL =====
+function openDetail(cardId) {
+  currentCardId = cardId;
+  activeSection = 'todo';
+  const card = data.cards.find(c => c.id === cardId);
+  if (!card) return;
+  renderDetail(card);
+  document.getElementById('detailModal').classList.add('show');
+}
+
+function closeDetail() {
+  // Save any open textarea content
+  saveCurrentSection();
+  document.getElementById('detailModal').classList.remove('show');
+  currentCardId = null;
+  save();
+}
+
+function renderDetail(card) {
+  const colColors = { ideas: '#fbbf24', planning: '#3b82f6', building: '#a855f7', launched: '#22c55e', onhold: '#666' };
+  const colName = data.columns[card.column]?.title || card.column;
+  const colColor = colColors[card.column] || '#666';
+
+  let html = `
+    <div class="detail-header">
+      <div class="detail-emoji">${card.emoji || '💡'}</div>
+      <div class="detail-title-wrap">
+        <input class="detail-title" value="${escHtml(card.title)}" onchange="updateCardField('title', this.value)" />
+        <span class="detail-column-badge" style="background:${colColor}22;color:${colColor}">${colName}</span>
+      </div>
+    </div>
+    <textarea class="detail-desc" onchange="updateCardField('desc', this.value)" placeholder="Short description...">${escHtml(card.desc)}</textarea>
+
+    <div class="section-tabs">
+      ${SECTIONS.map(s => `
+        <div class="section-tab ${s === activeSection ? 'active' : ''}" data-section="${s}" onclick="switchSection('${s}')">
+          ${SECTION_LABELS[s]}
+          ${s === 'todo' && card.sections.todo?.length ? `<span style="opacity:0.5;margin-left:4px;">(${card.sections.todo.filter(t=>t.done).length}/${card.sections.todo.length})</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+
+    <div id="sectionBody"></div>
+
+    <div class="detail-meta">
+      <label>Tags:</label>
+      <input id="detailTags" value="${(card.tags||[]).join(', ')}" onchange="updateCardField('tags', this.value.split(',').map(t=>t.trim()).filter(Boolean))" placeholder="ai, saas, re, voice, coach, game, tool" />
+      <label>💰</label>
+      <input id="detailRevenue" value="${escHtml(card.revenue||'')}" onchange="updateCardField('revenue', this.value)" placeholder="Revenue potential" style="min-width:200px;" />
+    </div>
+    <div class="detail-meta">
+      <label>Column:</label>
+      <select onchange="updateCardField('column', this.value)" style="min-width:140px;">
+        ${Object.entries(data.columns).map(([id,col]) => `<option value="${id}" ${card.column===id?'selected':''}>${col.title}</option>`).join('')}
+      </select>
+      <label>Emoji:</label>
+      <input value="${card.emoji||'💡'}" onchange="updateCardField('emoji', this.value)" style="width:60px;text-align:center;" />
+    </div>
+
+    <div class="detail-footer">
+      <button class="btn btn-danger btn-sm" onclick="deleteCard('${card.id}')">🗑️ Delete Card</button>
+      <button class="btn btn-primary btn-sm" onclick="closeDetail()">Done</button>
+    </div>
+  `;
+
+  document.getElementById('detailContent').innerHTML = html;
+  renderSectionBody(card);
+}
+
+function renderSectionBody(card) {
+  const body = document.getElementById('sectionBody');
+  if (!body) return;
+
+  if (activeSection === 'todo') {
+    const todos = card.sections.todo || [];
+    body.innerHTML = `
+      <ul class="todo-list">
+        ${todos.map((t, i) => `
+          <li class="todo-item ${t.done ? 'done' : ''}">
+            <button class="todo-check ${t.done ? 'checked' : ''}" onclick="toggleTodo(${i})">✓</button>
+            <span class="todo-text">${escHtml(t.text)}</span>
+            <button class="todo-delete" onclick="deleteTodo(${i})">✕</button>
+          </li>
+        `).join('')}
+      </ul>
+      <div class="add-todo">
+        <input type="text" id="newTodoInput" placeholder="Add a task..." onkeydown="if(event.key==='Enter')addTodo()" />
+        <button class="btn btn-sm" onclick="addTodo()">+ Add</button>
+      </div>
+    `;
+  } else {
+    const content = card.sections[activeSection] || '';
+    const placeholder = SECTION_PLACEHOLDERS[activeSection] || 'Write something...';
+    body.innerHTML = `
+      <textarea class="section-textarea" id="sectionText" placeholder="${placeholder}"
+        onchange="updateSection('${activeSection}', this.value)">${escHtml(content)}</textarea>
+    `;
+  }
+}
+
+function switchSection(section) {
+  saveCurrentSection();
+  activeSection = section;
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (!card) return;
+  document.querySelectorAll('.section-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.section === section);
+  });
+  renderSectionBody(card);
+}
+
+function saveCurrentSection() {
+  if (!currentCardId) return;
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (!card) return;
+  if (activeSection !== 'todo') {
+    const textarea = document.getElementById('sectionText');
+    if (textarea) card.sections[activeSection] = textarea.value;
+  }
+  localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+}
+
+function updateSection(section, value) {
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (card) {
+    card.sections[section] = value;
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+  }
+}
+
+function updateCardField(field, value) {
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (card) {
+    card[field] = value;
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+  }
+}
+
+// ===== TODO OPERATIONS =====
+function toggleTodo(index) {
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (card && card.sections.todo[index]) {
+    card.sections.todo[index].done = !card.sections.todo[index].done;
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+    renderSectionBody(card);
+  }
+}
+
+function addTodo() {
+  const input = document.getElementById('newTodoInput');
+  const text = input?.value.trim();
+  if (!text) return;
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (card) {
+    card.sections.todo.push({ text, done: false });
+    input.value = '';
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+    renderSectionBody(card);
+  }
+}
+
+function deleteTodo(index) {
+  const card = data.cards.find(c => c.id === currentCardId);
+  if (card) {
+    card.sections.todo.splice(index, 1);
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+    renderSectionBody(card);
+  }
+}
+
+function deleteCard(cardId) {
+  if (!confirm('Delete this card? This cannot be undone.')) return;
+  data.cards = data.cards.filter(c => c.id !== cardId);
+  closeDetail();
+}
+
+// ===== NEW IDEA MODAL =====
+function openNewModal() {
+  document.getElementById('newModal').classList.add('show');
+  document.getElementById('newTitle').focus();
+}
+function closeNewModal() {
+  document.getElementById('newModal').classList.remove('show');
+  ['newTitle','newDesc','newTags','newRevenue'].forEach(id => document.getElementById(id).value = '');
+}
+function addIdea() {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) return;
+  data.cards.push({
+    id: 'idea-' + Date.now(),
+    column: document.getElementById('newColumn').value,
+    emoji: '💡',
+    title,
+    desc: document.getElementById('newDesc').value.trim(),
+    tags: document.getElementById('newTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    revenue: document.getElementById('newRevenue').value.trim() || null,
+    sections: { todo: [], idea: '', plan: '', info: '', notes: '' }
+  });
+  closeNewModal();
+  save();
+}
+
+// ===== EXPORT =====
+function exportData() {
+  let text = '# Lisa\'s Ideas Board — Export\\n\\n';
+  Object.entries(data.columns).forEach(([colId, col]) => {
+    const cards = data.cards.filter(c => c.column === colId);
+    if (!cards.length) return;
+    text += `## ${col.title} (${cards.length})\\n\\n`;
+    cards.forEach(card => {
+      text += `### ${card.emoji||'💡'} ${card.title}\\n${card.desc}\\n`;
+      if (card.revenue) text += `💰 ${card.revenue}\\n`;
+      if (card.tags?.length) text += `Tags: ${card.tags.join(', ')}\\n`;
+      if (card.sections) {
+        if (card.sections.todo?.length) {
+          text += '\\nTodo:\\n';
+          card.sections.todo.forEach(t => text += `  ${t.done ? '✅' : '⬜'} ${t.text}\\n`);
+        }
+        ['idea','plan','info','notes'].forEach(s => {
+          if (card.sections[s]) text += `\\n${SECTION_LABELS[s]}:\\n${card.sections[s]}\\n`;
+        });
+      }
+      text += '\\n';
+    });
+  });
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lisa-ideas-board-export.md';
+  a.click();
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDetail(); closeNewModal(); }
+});
+
+render();
+</script>
+</body>
+</html>
