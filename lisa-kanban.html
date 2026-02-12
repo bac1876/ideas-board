@@ -318,6 +318,7 @@
   </div>
   <div class="header-actions">
     <button class="btn" onclick="exportData()">📋 Export</button>
+    <button class="btn" onclick="openNewColumnModal()">+ Column</button>
     <button class="btn btn-primary" onclick="openNewModal()">+ New Idea</button>
   </div>
 </div>
@@ -326,6 +327,21 @@
 <div class="board" id="board"></div>
 <div class="updated" id="updated"></div>
 
+<!-- NEW COLUMN MODAL -->
+<div class="modal-overlay" id="newColumnModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeNewColumnModal()">✕</button>
+    <h2>➕ New Column</h2>
+    <input type="text" id="newColumnName" placeholder="Column name...">
+    <input type="text" id="newColumnEmoji" placeholder="Emoji (optional, e.g. 🎯)" style="width:120px;display:inline-block;">
+    <input type="color" id="newColumnColor" value="#a855f7" style="width:60px;height:38px;display:inline-block;vertical-align:middle;border:1px solid #333;border-radius:8px;background:#1a1a1a;cursor:pointer;">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNewColumnModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addColumn()">Add Column</button>
+    </div>
+  </div>
+</div>
+
 <!-- NEW IDEA MODAL -->
 <div class="modal-overlay" id="newModal">
   <div class="modal">
@@ -333,12 +349,7 @@
     <h2>✨ New Idea</h2>
     <input type="text" id="newTitle" placeholder="Idea title...">
     <textarea id="newDesc" placeholder="Short description..."></textarea>
-    <select id="newColumn">
-      <option value="ideas">💡 Ideas</option>
-      <option value="planning">📋 Planning</option>
-      <option value="building">🔨 Building</option>
-      <option value="launched">🚀 Launched</option>
-    </select>
+    <select id="newColumn"></select>
     <input type="text" id="newTags" placeholder="Tags (comma separated): ai, saas, voice, re, coach, game, tool">
     <input type="text" id="newRevenue" placeholder="Revenue potential (optional)">
     <div class="modal-actions">
@@ -454,6 +465,7 @@ function render() {
     colEl.innerHTML = `
       <div class="column-header">
         <div class="column-title">${col.title} <span class="column-count">${cards.length}</span></div>
+        ${colId.startsWith('col-') ? `<button class="btn btn-sm" onclick="editColumn('${colId}')" style="padding:2px 6px;font-size:10px;">✏️</button>` : ''}
       </div>
       <div class="column-body" data-column="${colId}">
         <div class="drop-zone" data-column="${colId}">Drop here</div>
@@ -742,7 +754,55 @@ function deleteCard(cardId) {
 }
 
 // ===== NEW IDEA MODAL =====
+// ===== NEW COLUMN MODAL =====
+function openNewColumnModal() {
+  document.getElementById('newColumnModal').classList.add('show');
+  document.getElementById('newColumnName').focus();
+}
+function closeNewColumnModal() {
+  document.getElementById('newColumnModal').classList.remove('show');
+  document.getElementById('newColumnName').value = '';
+  document.getElementById('newColumnEmoji').value = '';
+  document.getElementById('newColumnColor').value = '#a855f7';
+}
+function editColumn(colId) {
+  const col = data.columns[colId];
+  if (!col) return;
+  const action = prompt(`Column: ${col.title}\n\nType a new name to rename, or type DELETE to remove this column.`, col.title);
+  if (action === null) return;
+  if (action.toUpperCase() === 'DELETE') {
+    const cardsInCol = data.cards.filter(c => c.column === colId);
+    if (cardsInCol.length > 0) {
+      if (!confirm(`This column has ${cardsInCol.length} card(s). They'll be moved to Ideas. Continue?`)) return;
+      cardsInCol.forEach(c => c.column = 'ideas');
+    }
+    delete data.columns[colId];
+    save();
+    return;
+  }
+  if (action.trim()) {
+    col.title = action.trim();
+    save();
+  }
+}
+function addColumn() {
+  const name = document.getElementById('newColumnName').value.trim();
+  if (!name) return;
+  const emoji = document.getElementById('newColumnEmoji').value.trim();
+  const color = document.getElementById('newColumnColor').value;
+  const id = 'col-' + Date.now();
+  const title = emoji ? `${emoji} ${name}` : name;
+  data.columns[id] = { title, color };
+  closeNewColumnModal();
+  save();
+}
+
+// ===== NEW IDEA MODAL =====
 function openNewModal() {
+  const sel = document.getElementById('newColumn');
+  sel.innerHTML = Object.entries(data.columns).map(([id, col]) =>
+    `<option value="${id}">${col.title}</option>`
+  ).join('');
   document.getElementById('newModal').classList.add('show');
   document.getElementById('newTitle').focus();
 }
@@ -803,7 +863,7 @@ function escHtml(str) {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetail(); closeNewModal(); }
+  if (e.key === 'Escape') { closeDetail(); closeNewModal(); closeNewColumnModal(); }
 });
 
 render();
