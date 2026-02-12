@@ -91,7 +91,8 @@
   }
   .column-body {
     padding: 8px;
-    min-height: 60px;
+    min-height: 100px;
+    transition: background 0.15s;
   }
 
   /* Cards */
@@ -131,6 +132,7 @@
   .section-badge-idea { background: #2a2a1a; color: #fbbf24; }
   .section-badge-plan { background: #1a1a2e; color: #818cf8; }
   .section-badge-info { background: #1a2a2a; color: #22d3ee; }
+  .section-badge-resources { background: #2a2018; color: #fb923c; }
   .section-badge-notes { background: #2a1a2a; color: #c084fc; }
 
   .tag {
@@ -145,10 +147,15 @@
   .tag-coach { background: #1a2a2a; color: #22d3ee; }
   .tag-tool { background: #1a1a1a; color: #94a3b8; }
 
+  .column.drag-active {
+    border-color: #333;
+    transition: border-color 0.15s;
+  }
+
   .drop-zone {
     border: 2px dashed #333; border-radius: 10px;
-    padding: 20px; text-align: center; color: #444;
-    font-size: 12px; margin: 8px 0; transition: all 0.15s; display: none;
+    padding: 12px; text-align: center; color: #444;
+    font-size: 12px; margin: 4px 0; transition: all 0.15s; display: none;
   }
   .drop-zone.active {
     display: block; border-color: #f97316; color: #f97316;
@@ -238,6 +245,7 @@
   .section-tab.active[data-section="todo"] { color: #4ade80; }
   .section-tab.active[data-section="idea"] { color: #fbbf24; }
   .section-tab.active[data-section="plan"] { color: #818cf8; }
+  .section-tab.active[data-section="resources"] { color: #fb923c; }
   .section-tab.active[data-section="info"] { color: #22d3ee; }
   .section-tab.active[data-section="notes"] { color: #c084fc; }
 
@@ -310,6 +318,7 @@
   </div>
   <div class="header-actions">
     <button class="btn" onclick="exportData()">📋 Export</button>
+    <button class="btn" onclick="openNewColumnModal()">+ Column</button>
     <button class="btn btn-primary" onclick="openNewModal()">+ New Idea</button>
   </div>
 </div>
@@ -318,6 +327,21 @@
 <div class="board" id="board"></div>
 <div class="updated" id="updated"></div>
 
+<!-- NEW COLUMN MODAL -->
+<div class="modal-overlay" id="newColumnModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeNewColumnModal()">✕</button>
+    <h2>➕ New Column</h2>
+    <input type="text" id="newColumnName" placeholder="Column name...">
+    <input type="text" id="newColumnEmoji" placeholder="Emoji (optional, e.g. 🎯)" style="width:120px;display:inline-block;">
+    <input type="color" id="newColumnColor" value="#f97316" style="width:60px;height:38px;display:inline-block;vertical-align:middle;border:1px solid #333;border-radius:8px;background:#1a1a1a;cursor:pointer;">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeNewColumnModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addColumn()">Add Column</button>
+    </div>
+  </div>
+</div>
+
 <!-- NEW IDEA MODAL -->
 <div class="modal-overlay" id="newModal">
   <div class="modal">
@@ -325,12 +349,7 @@
     <h2>✨ New Idea</h2>
     <input type="text" id="newTitle" placeholder="Idea title...">
     <textarea id="newDesc" placeholder="Short description..."></textarea>
-    <select id="newColumn">
-      <option value="ideas">💡 Ideas</option>
-      <option value="planning">📋 Planning</option>
-      <option value="building">🔨 Building</option>
-      <option value="launched">🚀 Launched</option>
-    </select>
+    <select id="newColumn"></select>
     <input type="text" id="newTags" placeholder="Tags (comma separated): ai, saas, voice, re, coach, game, tool">
     <input type="text" id="newRevenue" placeholder="Revenue potential (optional)">
     <div class="modal-actions">
@@ -350,11 +369,12 @@
 
 <script>
 // ===== DATA =====
-const SECTIONS = ['todo', 'idea', 'plan', 'info', 'notes'];
-const SECTION_LABELS = { todo: '✅ Todo', idea: '💡 Idea', plan: '📋 Plan', info: 'ℹ️ Info', notes: '📝 Notes' };
+const SECTIONS = ['todo', 'idea', 'plan', 'resources', 'info', 'notes'];
+const SECTION_LABELS = { todo: '✅ Todo', idea: '💡 Idea', plan: '📋 Plan', resources: '🔧 Resources', info: 'ℹ️ Info', notes: '📝 Notes' };
 const SECTION_PLACEHOLDERS = {
   idea: 'Describe the core idea... What problem does it solve? Who is it for?',
   plan: 'Outline the plan... What are the steps to build this? Architecture? Tech stack?',
+  resources: 'What do you need to build this?\n\nAPIs & Services:\n- \n\nSkills & Knowledge:\n- \n\nCost / Budget:\n- \n\nPeople / Help:\n- \n\nTools & Infrastructure:\n- ',
   info: 'Reference links, resources, API docs, competitor analysis, research...',
   notes: 'Free-form notes, observations, meeting notes, feedback...'
 };
@@ -384,6 +404,7 @@ const defaultData = {
         ],
         idea: 'Clone OpenClaw for real estate agents. Not just an app — a full personal AI assistant built on OpenClaw\'s proven architecture.\n\nEach agent gets their own always-on assistant that knows their pipeline, remembers every client, and proactively keeps them on track.\n\nFeatures as Skills:\n- MLS login + search (Playwright)\n- Contract filling (CFill — already built)\n- ShowingTime scheduling + route optimization\n- Post-showing voice notes → CRM auto-update\n- CMA builder from MLS sheets\n- Follow Up Boss integration\n- Nearby listing alerts (1mi radius)\n- Professional listing websites\n- Daily/weekly/monthly goal tracking',
         plan: 'Architecture: OpenClaw Clone (Restricted + RE Skills)\n\nKeep: Gateway + agent, Memory system, Heartbeat, Skills framework, Channel support (SMS/WhatsApp), Cron jobs\nRemove: Shell access, code execution, server management\nAdd: MLS Skill, Contract Skill, ShowingTime Skill, CRM Skill, Goal Tracking Skill\n\nDelivery:\n- Each agent gets own instance (or multi-tenant)\n- Agents provide own API keys (Gemini, FUB, ShowingTime)\n- Brian hosts helpers on DO server\n- Web dashboard + phone channels',
+        resources: 'APIs & Services:\n- OpenClaw (core architecture — already have)\n- Deepgram STT (Nova-2 + Flux — already integrated)\n- ElevenLabs TTS (already integrated)\n- OSRM routing API (free, no key)\n- Follow Up Boss API (per-agent key)\n- Google Maps API ($200/mo free credit)\n- Gemini API (per-agent key)\n\nInfrastructure:\n- DigitalOcean server (upgrade from $8/mo for multi-tenant)\n- Domain + SSL\n- PostgreSQL database\n\nExisting Tech (already built):\n- CFill contract filler ✅\n- ShowingTime Playwright automation ✅\n- Coaching app goal framework ✅\n- Route optimization ✅\n\nSkills & Knowledge:\n- Node.js / Express ✅\n- Playwright automation ✅\n- OpenClaw architecture ✅\n- MLS system access (need to research per-region)\n\nCost Estimate:\n- Server: ~$24-48/mo (bigger DO droplet)\n- APIs: mostly per-agent (they bring own keys)\n- Domain: ~$12/yr',
         info: 'Existing tech that feeds into this:\n- CFill contract filler (Playwright + FormSimplicity) — DONE\n- ShowingTime booking automation (Playwright) — DONE\n- Deepgram STT (Nova-2 + Flux) — integrated\n- ElevenLabs TTS — integrated\n- Coaching app goal framework — DONE\n- Route optimization (OSRM API) — tested\n\nMarket: 1.7M US agents, $50-100/mo subscription\nCompetitors: Point solutions but no true all-in-one AI assistant',
         notes: 'Brian\'s exact words: "I want to basically clone OpenClaw, restrict some of its abilities, and then add a specific set of skills that real estate agents can use."\n\nKey insight: Once an agent\'s data and workflow is in the system, switching cost is high = strong moat.'
       }
@@ -405,6 +426,7 @@ const defaultData = {
         ],
         idea: 'Agent gives addresses + time window. System optimizes route (OSRM API), logs into ShowingTime via Playwright, schedules each showing in optimal order, sends professional email to buyer with the plan.',
         plan: 'Tech: Playwright + OSRM routing API + Nominatim geocoding (all free)\nScript: /root/clawd/skills/showingtime-booking/\nFlow: Login → search → select listing → pick time → set end time → Request Appointment → CONFIRMED\nExecution: ~30 seconds per booking',
+        resources: 'APIs & Services:\n- OSRM routing API (free) ✅\n- Nominatim/Photon geocoding (free) ✅\n- Playwright + Chromium ✅\n\nCredentials (per agent):\n- ShowingTime login\n\nInfrastructure:\n- DO server (already running) ✅\n\nAll resources acquired — this is DONE.',
         info: 'ShowingTime URL: apptcenter.showingdesk.com\nKey selectors: #UserName, #Password, button[type=submit]\nScheduling iframe: scheduling.showingtime.com (cross-origin, Playwright handles it)\nTested: MLS #1327440, 3435 Alliance Dr, Springdale AR',
         notes: 'COMPLETE as of Feb 12, 2026. Packaged as OpenClaw skill. Successfully tested live booking.'
       }
@@ -424,6 +446,7 @@ const defaultData = {
         ],
         idea: 'After showing a property, the app prompts: "How was the showing at [address]?" Agent talks naturally for 30 seconds.\n\nAI transcribes and extracts:\n- Client sentiment (positive/negative/neutral)\n- Specific concerns mentioned\n- Likely offer range\n- Action items / follow-up dates\n\nPushes structured data to CRM. No typing. No forgetting. Captured while fresh.',
         plan: '',
+        resources: 'APIs & Services:\n- Deepgram STT (already integrated) ✅\n- Follow Up Boss REST API (per-agent key)\n- OpenAI or Claude for extraction\n\nCredentials (per agent):\n- Follow Up Boss API key\n\nCost:\n- Deepgram: ~$0.0043/min\n- OpenAI extraction: ~$0.01/note',
         info: 'Deepgram STT already integrated in CFill.\nFollow Up Boss has a REST API.\nCould use OpenAI/Claude for extraction.',
         notes: ''
       }
@@ -645,12 +668,49 @@ const defaultData = {
         info: 'Source: G:\\dropbox\\a-store\\REddit for Lead Gen.docx\nProject: /root/clawd/projects/reddit-lead-gen/',
         notes: ''
       }
+    },
+    {
+      id: 'crg-showings', column: 'building', emoji: '📧',
+      title: 'CRG Showings — Email-to-Booking Service',
+      desc: 'Agent emails addresses to CRGShowings@gmail.com → system books ShowingTime, optimizes route, captures MLS data, sends confirmation. Feeds into CFill.',
+      tags: ['re', 'ai', 'saas'],
+      revenue: 'Part of Agent Assistant — core automation',
+      sections: {
+        todo: [
+          { text: 'Smart scheduling algorithm (15 min + drive times)', done: true },
+          { text: 'Route optimization (OSRM)', done: true },
+          { text: 'Email parser (natural language dates/times)', done: true },
+          { text: 'Agent database (SQLite + AES encryption)', done: true },
+          { text: 'CRGShowings@gmail.com OAuth setup', done: true },
+          { text: 'ShowingTime Playwright booking', done: true },
+          { text: 'End-to-end dry run test', done: true },
+          { text: 'Live booking test with real email', done: false },
+          { text: 'MLS data capture → CFill integration', done: false },
+          { text: 'Gmail API on server (24/7 autonomous monitoring)', done: false },
+          { text: 'Confirmation email with route map', done: false },
+          { text: 'Agent onboarding flow (self-registration)', done: false }
+        ],
+        idea: 'Agent sends one email with addresses → gets back confirmed showings + optimized route + MLS data pre-loaded in CFill.\n\nThe full loop:\n1. Email addresses to CRGShowings@gmail.com\n2. System identifies agent by sender email\n3. Looks up their ShowingTime credentials\n4. Optimizes route (OSRM — free)\n5. Calculates smart schedule (15 min minimum + drive times, round down to 15-min slots, 1 hour bookings)\n6. Playwright books each showing on ShowingTime\n7. Captures MLS data from each listing\n8. Sends confirmation email with full itinerary\n9. Pushes MLS data to CFill for contract pre-fill',
+        plan: 'Architecture:\n- Agent DB: SQLite + AES-256 encrypted credentials\n- Email: CRGShowings@gmail.com (gog OAuth on Brian-PC, future: Gmail API on server)\n- Geocoding: Photon + Nominatim fallback (free)\n- Routing: OSRM (free)\n- Booking: Playwright + Chromium (headless)\n- Server: DO droplet (143.110.233.145)\n\nSmart Scheduling:\n- 15 min minimum at each property\n- Drive time from OSRM between stops\n- Round DOWN to nearest 15-min ShowingTime slot\n- Each booking = 1 hour (seller benefit)\n- Agent always arrives AFTER booking window opens',
+        resources: 'APIs & Services:\n- OSRM routing (free) ✅\n- Photon/Nominatim geocoding (free) ✅\n- Playwright + Chromium ✅\n- Gmail via gog CLI ✅\n- chrono-node for date parsing ✅\n- better-sqlite3 ✅\n\nCredentials:\n- CRGShowings@gmail.com (OAuth on Brian-PC) ✅\n- Per-agent ShowingTime creds (stored encrypted)\n\nInfrastructure:\n- DO server ✅\n- Node.js + npm ✅\n\nNeeded:\n- Gmail API refresh token on server (for 24/7 monitoring)\n- PM2 process management\n- Agent onboarding UI or form',
+        info: 'Project: /root/clawd/projects/crg-showings/\nFiles:\n- schedule-showings.js — smart scheduling + route optimization + booking\n- agent-db.js — agent database with encrypted creds\n- email-parser.js — natural language email parsing\n- process-inbox.js — end-to-end email processor\n- gmail-client.js — local gog Gmail wrapper\n- gmail-via-node.js — remote Gmail via Brian-PC\n\nDB: crg-showings.db\nAgent #1: Brian Curtis (brian@searchnwa.com)',
+        notes: 'Built Feb 12, 2026. Full pipeline working in dry-run mode.\nBrian\'s vision: combine with CFill so MLS data flows into contracts automatically.\nKey insight: email is zero-friction interface — agents already email, no app to learn.'
+      }
     }
   ]
 };
 
 // ===== STATE =====
 let data = JSON.parse(localStorage.getItem('kanban-v2')) || defaultData;
+
+// Auto-sync: merge new cards from defaultData that don't exist in saved data
+const savedIds = new Set(data.cards.map(c => c.id));
+const newCards = defaultData.cards.filter(c => !savedIds.has(c.id));
+if (newCards.length > 0) {
+  data.cards.push(...newCards);
+  localStorage.setItem('kanban-v2', JSON.stringify(data));
+  console.log(`Synced ${newCards.length} new card(s) from defaults`);
+}
 let currentCardId = null;
 let activeSection = 'todo';
 
@@ -695,6 +755,7 @@ function render() {
     colEl.innerHTML = `
       <div class="column-header">
         <div class="column-title">${col.title} <span class="column-count">${cards.length}</span></div>
+        ${colId.startsWith('col-') ? `<button class="btn btn-sm" onclick="editColumn('${colId}')" style="padding:2px 6px;font-size:10px;">✏️</button>` : ''}
       </div>
       <div class="column-body" data-column="${colId}">
         <div class="drop-zone" data-column="${colId}">Drop here</div>
@@ -763,22 +824,45 @@ function setupDragDrop() {
       e.stopPropagation();
       card.classList.add('dragging');
       e.dataTransfer.setData('text/plain', card.dataset.id);
-      setTimeout(() => document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active')), 0);
+      setTimeout(() => {
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active'));
+        document.querySelectorAll('.column').forEach(c => c.classList.add('drag-active'));
+      }, 0);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
       document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
+      document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-active'));
+      document.querySelectorAll('.column-body').forEach(b => b.style.background = '');
     });
   });
 
-  document.querySelectorAll('.column-body').forEach(body => {
-    body.addEventListener('dragover', e => { e.preventDefault(); body.style.background = 'rgba(249,115,22,0.05)'; });
-    body.addEventListener('dragleave', () => { body.style.background = ''; });
-    body.addEventListener('drop', e => {
-      e.preventDefault(); body.style.background = '';
+  // Make ENTIRE column a drop target (header + body + everything)
+  document.querySelectorAll('.column').forEach(col => {
+    const colBody = col.querySelector('.column-body');
+    const colId = colBody?.dataset.column;
+    if (!colId) return;
+
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      colBody.style.background = 'rgba(249,115,22,0.08)';
+      col.style.borderColor = '#f97316';
+    });
+    col.addEventListener('dragleave', (e) => {
+      // Only if we're leaving the column entirely
+      if (!col.contains(e.relatedTarget)) {
+        colBody.style.background = '';
+        col.style.borderColor = '';
+      }
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      colBody.style.background = '';
+      col.style.borderColor = '';
       const cardId = e.dataTransfer.getData('text/plain');
       const card = data.cards.find(c => c.id === cardId);
-      if (card) { card.column = body.dataset.column; save(); }
+      if (card) { card.column = colId; save(); }
     });
   });
 }
@@ -960,7 +1044,55 @@ function deleteCard(cardId) {
 }
 
 // ===== NEW IDEA MODAL =====
+// ===== NEW COLUMN MODAL =====
+function openNewColumnModal() {
+  document.getElementById('newColumnModal').classList.add('show');
+  document.getElementById('newColumnName').focus();
+}
+function closeNewColumnModal() {
+  document.getElementById('newColumnModal').classList.remove('show');
+  document.getElementById('newColumnName').value = '';
+  document.getElementById('newColumnEmoji').value = '';
+  document.getElementById('newColumnColor').value = '#f97316';
+}
+function editColumn(colId) {
+  const col = data.columns[colId];
+  if (!col) return;
+  const action = prompt(`Column: ${col.title}\n\nType a new name to rename, or type DELETE to remove this column.`, col.title);
+  if (action === null) return;
+  if (action.toUpperCase() === 'DELETE') {
+    const cardsInCol = data.cards.filter(c => c.column === colId);
+    if (cardsInCol.length > 0) {
+      if (!confirm(`This column has ${cardsInCol.length} card(s). They'll be moved to Ideas. Continue?`)) return;
+      cardsInCol.forEach(c => c.column = 'ideas');
+    }
+    delete data.columns[colId];
+    save();
+    return;
+  }
+  if (action.trim()) {
+    col.title = action.trim();
+    save();
+  }
+}
+function addColumn() {
+  const name = document.getElementById('newColumnName').value.trim();
+  if (!name) return;
+  const emoji = document.getElementById('newColumnEmoji').value.trim();
+  const color = document.getElementById('newColumnColor').value;
+  const id = 'col-' + Date.now();
+  const title = emoji ? `${emoji} ${name}` : name;
+  data.columns[id] = { title, color };
+  closeNewColumnModal();
+  save();
+}
+
+// ===== NEW IDEA MODAL =====
 function openNewModal() {
+  const sel = document.getElementById('newColumn');
+  sel.innerHTML = Object.entries(data.columns).map(([id, col]) =>
+    `<option value="${id}">${col.title}</option>`
+  ).join('');
   document.getElementById('newModal').classList.add('show');
   document.getElementById('newTitle').focus();
 }
@@ -1021,7 +1153,7 @@ function escHtml(str) {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetail(); closeNewModal(); }
+  if (e.key === 'Escape') { closeDetail(); closeNewModal(); closeNewColumnModal(); }
 });
 
 render();
