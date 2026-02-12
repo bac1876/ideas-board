@@ -465,7 +465,11 @@ function render() {
     colEl.innerHTML = `
       <div class="column-header">
         <div class="column-title">${col.title} <span class="column-count">${cards.length}</span></div>
-        ${colId.startsWith('col-') ? `<button class="btn btn-sm" onclick="editColumn('${colId}')" style="padding:2px 6px;font-size:10px;">✏️</button>` : ''}
+        <div style="display:flex;gap:2px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();moveColumn('${colId}',-1)" style="padding:2px 5px;font-size:10px;" title="Move left">◀</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();moveColumn('${colId}',1)" style="padding:2px 5px;font-size:10px;" title="Move right">▶</button>
+          ${colId.startsWith('col-') ? `<button class="btn btn-sm" onclick="event.stopPropagation();editColumn('${colId}')" style="padding:2px 5px;font-size:10px;">✏️</button>` : ''}
+        </div>
       </div>
       <div class="column-body" data-column="${colId}">
         <div class="drop-zone" data-column="${colId}">Drop here</div>
@@ -784,6 +788,18 @@ function editColumn(colId) {
     col.title = action.trim();
     save();
   }
+}
+function moveColumn(colId, direction) {
+  const keys = Object.keys(data.columns);
+  const idx = keys.indexOf(colId);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= keys.length) return;
+  [keys[idx], keys[newIdx]] = [keys[newIdx], keys[idx]];
+  const newColumns = {};
+  keys.forEach(k => newColumns[k] = data.columns[k]);
+  data.columns = newColumns;
+  save();
 }
 function addColumn() {
   const name = document.getElementById('newColumnName').value.trim();
