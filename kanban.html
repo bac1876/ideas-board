@@ -697,6 +697,32 @@ const defaultData = {
         notes: 'Built Feb 12, 2026. Full pipeline working in dry-run mode.\nBrian\'s vision: combine with CFill so MLS data flows into contracts automatically.\nKey insight: email is zero-friction interface — agents already email, no app to learn.'
       }
     }
+    ,{
+      id: 'ylopo-text',
+      column: 'ideas',
+      emoji: '📱',
+      title: 'Ylopo Push Listing Text Automation',
+      desc: 'Agent says "Send a YLOPO text for 3751 Alliance Drive" → system pushes listing in Ylopo Stars → grabs tracking link → sends text via Follow Up Boss.',
+      tags: ['re', 'ai', 'automation'],
+      revenue: 'Part of Agent Assistant — lead engagement',
+      sections: {
+        todo: [
+          { text: 'Get FUB API key from Brian', done: false },
+          { text: 'Get Ylopo Stars login credentials', done: false },
+          { text: 'Map Ylopo Stars Push Listing flow (Playwright)', done: false },
+          { text: 'Extract Ylopo tracking link after push', done: false },
+          { text: 'FUB API integration for sending texts', done: false },
+          { text: 'Determine lead targeting (specific lead vs batch)', done: false },
+          { text: 'Build end-to-end automation script', done: false },
+          { text: 'Test with real lead + real listing', done: false }
+        ],
+        idea: 'Current manual workflow (from Brian\'s video):\n1. Open Follow Up Boss → filter contacts (Buyer-B/C)\n2. Open lead in Ylopo Stars (linked from FUB)\n3. Push Listings wizard: search by address → select listing → push\n4. Back to FUB → compose text with Ylopo tracking link → Send\n\nAutomated version:\n- Brian tells Kosmo: "Send a YLOPO text for [address]"\n- System pushes listing in Ylopo Stars (Playwright or API)\n- Gets the tracking link (brian.search.warkansashomes.com/t/...)\n- Sends text via FUB API: "Here is a home you might like [link]"\n\nCould also batch: "Send YLOPO texts for all properties near [address]"',
+        plan: 'Two possible approaches:\n\nOption A: Browser Automation (Playwright)\n- Log into Ylopo Stars + FUB\n- Walk through Push Listing wizard\n- Grab tracking link\n- Compose and send text\n- Pro: works with existing UI\n- Con: fragile, breaks on UI changes\n\nOption B: API-Based\n- FUB has a documented API for texting\n- Ylopo may have API endpoints for push listings\n- Pro: fast, reliable, no browser needed\n- Con: may need API access/keys\n\nRecommendation: Start with Playwright (proven approach from ShowingTime), migrate to API later.',
+        resources: 'Needed:\n- FUB API key (Admin > API in Follow Up Boss)\n- Ylopo Stars credentials\n- FUB contact ID or phone number for target lead\n\nExisting:\n- Playwright + Chromium on DO server ✅\n- Node.js automation framework ✅\n- ShowingTime skill as template for Playwright automation ✅',
+        info: 'Observed workflow from video (2026-02-12_16-08-04.mp4):\n- FUB URL: com16.followupboss.com\n- Ylopo Stars URL: stars.ylopo.com\n- Ylopo tracking links: brian.search.warkansashomes.com/t/[code]\n- Text template: "Here is a home you might like [link]"\n- FUB outbound number: (479) 616-1504\n- Push Listing wizard: 3 steps (search criteria → select listings → confirm)',
+        notes: 'Video analyzed Feb 12, 2026.\nBrian wants: natural language input ("send ylopo text for [address]") → fully automated.\nKey question: send to one specific lead or batch all leads in an area?\nAlso: FUB has CallAction Text Automations integration visible in the UI.'
+      }
+    }
   ]
 };
 
