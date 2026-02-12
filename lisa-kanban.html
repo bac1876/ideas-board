@@ -472,7 +472,6 @@ function render() {
         </div>
       </div>
       <div class="column-body" data-column="${colId}">
-        <div class="drop-zone" data-column="${colId}">Drop here</div>
         ${cards.map(renderCard).join('')}
       </div>
     `;
@@ -539,19 +538,19 @@ function setupDragDrop() {
       card.classList.add('dragging');
       e.dataTransfer.setData('text/plain', card.dataset.id);
       setTimeout(() => {
-        document.querySelectorAll('.drop-zone').forEach(z => z.classList.add('active'));
         document.querySelectorAll('.column').forEach(c => c.classList.add('drag-active'));
       }, 0);
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
-      document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
       document.querySelectorAll('.column').forEach(c => c.classList.remove('drag-active'));
       document.querySelectorAll('.column-body').forEach(b => b.style.background = '');
+      document.querySelectorAll('.column').forEach(c => c.style.borderColor = '');
+      document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
     });
   });
 
-  // Make ENTIRE column a drop target (header + body + everything)
+  // Make ENTIRE column a drop target
   document.querySelectorAll('.column').forEach(col => {
     const colBody = col.querySelector('.column-body');
     const colId = colBody?.dataset.column;
@@ -562,21 +561,58 @@ function setupDragDrop() {
       e.dataTransfer.dropEffect = 'move';
       colBody.style.background = 'rgba(168,85,247,0.08)';
       col.style.borderColor = '#a855f7';
+
+      const cards = [...colBody.querySelectorAll('.card:not(.dragging)')];
+      colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+      const afterCard = cards.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = e.clientY - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, el: child };
+        return closest;
+      }, { offset: -Infinity }).el;
+
+      const indicator = document.createElement('div');
+      indicator.className = 'drop-indicator';
+      indicator.style.cssText = 'height:3px;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:2px;margin:4px 0;';
+      if (afterCard) colBody.insertBefore(indicator, afterCard);
+      else colBody.appendChild(indicator);
     });
     col.addEventListener('dragleave', (e) => {
-      // Only if we're leaving the column entirely
       if (!col.contains(e.relatedTarget)) {
         colBody.style.background = '';
         col.style.borderColor = '';
+        colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
       }
     });
     col.addEventListener('drop', e => {
       e.preventDefault();
       colBody.style.background = '';
       col.style.borderColor = '';
+      colBody.querySelectorAll('.drop-indicator').forEach(i => i.remove());
       const cardId = e.dataTransfer.getData('text/plain');
       const card = data.cards.find(c => c.id === cardId);
-      if (card) { card.column = colId; save(); }
+      if (!card) return;
+
+      const cardsInCol = [...colBody.querySelectorAll('.card:not(.dragging)')];
+      const afterCard = cardsInCol.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = e.clientY - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, el: child };
+        return closest;
+      }, { offset: -Infinity }).el;
+
+      const cardIdx = data.cards.indexOf(card);
+      data.cards.splice(cardIdx, 1);
+      card.column = colId;
+
+      if (afterCard) {
+        const afterId = afterCard.dataset.id;
+        const targetIdx = data.cards.findIndex(c => c.id === afterId);
+        data.cards.splice(targetIdx, 0, card);
+      } else {
+        data.cards.push(card);
+      }
+      save();
     });
   });
 }
