@@ -173,6 +173,13 @@
 
   .updated { color: #444; font-size: 11px; text-align: right; margin-top: 16px; }
 
+  .sync-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #666; margin-left: 12px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #666; transition: background 0.3s; }
+  .sync-dot.connected { background: #22c55e; }
+  .sync-dot.offline { background: #ef4444; }
+  .sync-dot.syncing { background: #fbbf24; animation: pulse 0.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
   /* ===== MODAL: Shared ===== */
   .modal-overlay {
     display: none; position: fixed;
@@ -314,7 +321,7 @@
 <div class="header">
   <div>
     <h1>✨ Lisa's Ideas Board</h1>
-    <div class="subtitle">Click cards to expand • Drag between columns • All changes auto-save</div>
+    <div class="subtitle">Click cards to expand • Drag between columns • All changes auto-save <span class="sync-indicator"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">connecting...</span></span></div>
   </div>
   <div class="header-actions">
     <button class="btn" onclick="exportData()">📋 Export</button>
@@ -410,19 +417,78 @@ const defaultData = {
   ]
 };
 
+// ===== API CONFIG =====
+const API_URL = 'http://143.110.233.145:3200';
+const BOARD_ID = 'lisa';
+let apiConnected = false;
+
+function setSyncStatus(status) {
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if (!dot) return;
+  dot.className = 'sync-dot ' + status;
+  label.textContent = status === 'connected' ? 'synced' : status === 'offline' ? 'offline (local)' : 'syncing...';
+}
+
+async function fetchFromApi() {
+  try {
+    const [colRes, cardRes] = await Promise.all([
+      fetch(`${API_URL}/api/boards/${BOARD_ID}/columns`),
+      fetch(`${API_URL}/api/boards/${BOARD_ID}/cards`)
+    ]);
+    if (!colRes.ok || !cardRes.ok) throw new Error('API error');
+    const columns = await colRes.json();
+    const cards = (await cardRes.json()).map(c => ({
+      id: c.id, column: c.columnId, emoji: c.emoji, title: c.title,
+      desc: c.description, tags: c.tags, revenue: c.revenue, sections: c.sections
+    }));
+    apiConnected = true;
+    setSyncStatus('connected');
+    return { columns, cards };
+  } catch (e) {
+    console.warn('API unreachable, using localStorage', e);
+    apiConnected = false;
+    setSyncStatus('offline');
+    return null;
+  }
+}
+
+async function syncToApi() {
+  if (!apiConnected) return;
+  try {
+    setSyncStatus('syncing');
+    await fetch(`${API_URL}/api/boards/${BOARD_ID}/bulk`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ columns: data.columns, cards: data.cards })
+    });
+    setSyncStatus('connected');
+  } catch (e) {
+    console.warn('API sync failed', e);
+    setSyncStatus('offline');
+    apiConnected = false;
+  }
+}
+
 // ===== STATE =====
 let data = JSON.parse(localStorage.getItem('lisa-kanban-v1')) || defaultData;
-
-// Auto-sync: merge new cards from defaultData that don't exist in saved data
-const savedIds = new Set(data.cards.map(c => c.id));
-const newCards = defaultData.cards.filter(c => !savedIds.has(c.id));
-if (newCards.length > 0) {
-  data.cards.push(...newCards);
-  localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
-  console.log(`Synced ${newCards.length} new card(s) from defaults`);
-}
 let currentCardId = null;
 let activeSection = 'todo';
+
+// Load from API on startup
+(async () => {
+  const apiData = await fetchFromApi();
+  if (apiData && Object.keys(apiData.columns).length > 0) {
+    if (apiData.cards.length > 0) data = apiData;
+    else data.columns = apiData.columns; // keep local cards if API has none
+    data.cards.forEach(card => {
+      if (!card.sections) card.sections = { todo: [], idea: '', plan: '', info: '', notes: '' };
+      SECTIONS.forEach(s => { if (card.sections[s] === undefined) card.sections[s] = s === 'todo' ? [] : ''; });
+    });
+    localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
+    render();
+  }
+})();
 
 // Migrate old cards without sections
 data.cards.forEach(card => {
@@ -436,9 +502,12 @@ data.cards.forEach(card => {
   });
 });
 
+let _saveTimer = null;
 function save() {
   localStorage.setItem('lisa-kanban-v1', JSON.stringify(data));
   render();
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => syncToApi(), 500);
 }
 
 // ===== RENDER BOARD =====
